@@ -36,8 +36,53 @@ selector:
 this selector type match with pods type
 the match lables selector simply matches the lables specified under it to the lables on the pod.
 
+kubectl create -f replicaset-defination.yml
+kubectl get replicaset 
+kubectl get pods 
 
+The role of the replica set is to monitor the pods and if any of them were to fail,deploy new ones.
+how we update our set to scale to six replica 
 
+ [1] update the number of replica in the defination file to six 
+     kubectl replace -f replicaset-defination.yml 
+ first change in yml file and use this 
+ [2] - to run kubectl scale command 
+       kubectl scale --replicas=6 -f replicas-defination.yml
+     - you can also use replica set name 
+       kubectl scale --replicas=6 replicaset myapp-replicaset
+       replicaset = type 
+       myapp-replicaset = replicaset name 
+However ,remember that using the file name as input will not result in the number of replicas being updated automatically in 
+the file.
+if we use scale command then file is not updated 
+
+*Delete the replica 
+kubectl delete replicaset myapp-replicaset
+myapp-replicaset = name of replicaset and it is also delete all underlying pods 
+
+*if we want to edit replica set 
+kubectl edit replicaset new-replicaset
+new-replicaset = name of replicaset 
+
+suppose if we want to change image so first edit replicaset file and after delete pods 
+kubectl delete pods-name 
+
+Deployment 
+for now only one change 
+kind: Deployment
+kubectl create -f deployment-defination.yml
+kubectl get deployments 
+
+#to see all object at once 
+kubectl get all 
+
+output beauity 
+the -o flag alllows us to output the details in several diffrent  formats.
+
+-o json output in json formet
+-o name print only resource name 
+-0 yml output in yml formet 
+-o wide plain text with additional formet
 
 
 #How to deploye pods 
