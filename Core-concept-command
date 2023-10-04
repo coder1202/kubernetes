@@ -1,1 +1,54 @@
+Pods 
+
+#To get pod 
+kubectl get pods 
+kubectl -n mynamespace get pods
+
+#to get more information releted to pods 
+kubectl describe pod myapp-pod 
+
+#delete pod 
+kubectl delete pod webapp
+
+#for edit pods 
+kubectl edit pod redis 
+
+#If you are not given a pod defination file you may extract the defination to a file using the below command.
+kubectl get pod podname -o yaml > pod-defination.yaml
+
+#then edit the file to make necessary changes delete asd re-create the pod.
+
+replication controller
+#to create replication controller
+kubectl create -f rc-defination-yml
+
+#to get 
+kubectl get name
+
+Replica set 
+the selector section helps the replica set identify what pods fail under it 
+replica set can also manage pods that were not crated as part of replica set creation 
+
+selector:
+   matchLable:
+     type:fronted 
+
+this selector type match with pods type
+the match lables selector simply matches the lables specified under it to the lables on the pod.
+
+
+
+
+
+#How to deploye pods 
+kubectl run nginx --image nginx 
+
+apiversion it is version of kubernates api we are using to create object.
+kind version 
+Pod v1
+service v1
+Replicaset app/v1
+Deployment app/v1
+
+kind:refer to the type of object we are trying to create 
 
