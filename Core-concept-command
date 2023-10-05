@@ -76,6 +76,9 @@ kubectl get deployments
 #to see all object at once 
 kubectl get all 
 
+#Run this command to get the YAML configuration of the pod
+kubectl get pod [name] -o yaml
+
 output beauity 
 the -o flag alllows us to output the details in several diffrent  formats.
 
