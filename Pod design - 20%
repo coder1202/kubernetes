@@ -1,0 +1,192 @@
+                                                                        Labels,Selectors 
+Lables and selectors are a standard method to group things together
+we have created lots of different type of objects in kubernetes pods,services ,replicaset ,deployments , etc 
+
+overtime you may end up having hundreds or thousands of these objects in your cluster
+then you will need a way to filter and view different objects by diffrent categories such as to group to group objects by their type or view object by application or by their functionality whatever it may be you can group and select objects using labels and selectors.
+
+Lables 
+in pod defination file under metadata create a section called labels.under that,add the labels in a key value format like this 
+apiVersion: v1
+kind: Pod
+metadata:
+    name: simple-webapp
+    labels:
+      app: App1
+      function: Front-end
+
+
+//now this is the one usecase of lable and selector 
+                                                             kubectl get pods --selector app=App1
+
+kubectl get pod --selector env=dev --no-header | wc -l
+
+how many pods are in the finance business unit (bu)?
+kubectl get pods --selector bu=finance --no-header | wc -l
+
+how many objects are in the prod environment including pods replicaset and any other objects?
+kubectl get all --selector env=prod --no-header | wc -l
+
+identify the pod which is part of the prod environment the finance bu and of frontend tier?
+kubectl get all --selector env=prod,bu=finance,tier=frontend
+
+
+Kubernetes objects use labels and selector internally to connect diffrent object together 
+
+For create replicaset consisting of three diffrent pods,we first label the pod defination file 
+replicaset-defination.yaml
+apiVersion: app/v1
+kind: ReplicaSet
+metadata:
+   name: simple-webapp
+   labels:                          .......................................... 
+      app: App1
+      function: Front-end
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: App1       
+   template:
+     metadata:
+        labels:       ................................
+         app: App1
+         function: Front-end
+     spec:
+      containers:
+         name: simple-webapp
+         image: simple-webapp
+
+Annotations
+are used to record other details for informatory purpose 
+For example : tool details like name , version , build information etc or contact details phone number emails id etc that may be used for some kind of integration purpose 
+
+
+Update and Rollback in a deployment 
+when we first create a deployment it triggers a rollout.a new rollout create a new deployment revision  lets called it revision 1
+in the future when the application is upgraded,meaning when the container version is updated to a new one,a new rollout is triggered and a new deployment revision is created named revision 2.
+this help us keep track of the changes made to our deployment and enable us to roll back to a previous version of deployment if necessary 
+
+See the status of rollout
+kubectl rollout status deployment/myapp-deployment
+
+to see the revisions and history of rollout,run the kubectl rollout history command 
+kubectl rollout history deployment/myapp-deployment
+
+Deployment strategy
+[1]Recreate
+one way to upgrade these to a newer version is  to destroy all of these and then create newer version of application instance.meaning first destroy the five running instance and then deploy five new instance of the new application version 
+problem here is that during the period after the older versions are down and before any newer version is up the application is down and inaccessible to user 
+this strategy is known as the recreate strategy.
+[2] Rolling update [default deployment strategy]
+the second strategy is where we dont not destroy all of them at once.instead we take down the older version  and bring up a newer version one by one 
+this way the application never goes down and the upgrade is seamless 
+remember if you do not specify a strategy while creating the deployment it will assume it to be rolling update   
+
+kubectl apply -f deployment-defination coomand to apply changes 
+
+//for update the image of the application
+kubectl set image deployment/myapp-depoyment \ nginx-container=nginix:1.9.1
+
+//allow you to roll back to a prev ious revision to undo a change 
+kubectl rollout undo deployment/myapp-deployment
+the deployment will then destroy the pods in the new replica set and bring the older ones up in the old replica set  and your application is back to its older format.
+
+//kubectl create -f deployment-defination.yaml --record 
+kubectl rollout status deployment/myapp-deployment
+kubectl rollout history deployment/myapp-deployment
+so now in pod defination file we change the version of image nginx-1.12
+now apply this change 
+kubectl apply -f deployment-defination.yaml
+now give kubectl rollout status deployment/myapp-deployment
+to see the status of rollout
+
+now history command you see to revision 
+kubectl set image deployment/
+
+same change using kubectl set image command it is alternative way of upgrading your NGINX containers or your application 
+kubectl set image deployment/myapp-deployment/myapp-deployment/myapp-deployment nginx-container=nginx:1.12-perl
+
+rollback the last change that you made 
+kubectl rollout undo deployment/myapp-deployment
+
+
+                                                                                  Jobs
+There are diffrent type of workload that a container can serve few we are see web,application,database 
+there are other kind of workload such as batch processing,analytics or reporting that are meant to carry out a specific task and then finish 
+
+                 Create view and delete 
+
+job-defination.yaml
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: math-add-job
+spec:
+  completions: 3
+  template:
+      spec:
+        containers:
+           - name: math-add
+             image: ubantu
+             command: ['expr','3',`+`,'2']
+        restartPolicy: Never
+
+kubectl create -f job-defination.yaml
+kubectl get jobs
+kubectl get pods 
+kubectl logs math-add-job-1d87pn
+kubectl delete job math-add-job
+
+or if the job was to generate and email a report , then the email with the report would be the result of the job
+
+to run multiple pods we set value for completions under the job specification 
+completions: 3 
+
+restartPolicy: Never 
+nakar ae run thya j kre so never aapiyu 
+
+instend of getting the pods created sequentially , we can get them created in paraller for this add a property called parallelism to the job specification 
+pass failed pass failed failed pass
+so the job first create three pods at once,two of which complete successfully so we only need one more so its intelligent enough to create one pod at a time.
+
+parallelism: 3
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: math-add-job
+spec:
+  completions: 3
+  parallelism: 3
+  template:
+      spec:
+        containers:
+           - name: random-error
+             image: kodekloud/random-error
+        restartPolicy: Never
+
+                                                                            Cron job  
+a cronjob is a job that can be scheduled 
+say for example you have a job that generate a report and sends an email you can create the job using the cube control create command but  it runs instantly 
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+   name: reporting-cron-job
+spec:
+ schedule: "*/1 * * * *"
+ jobTemplate: 
+   spec:
+    completions: 3
+    parallelism: 3
+    template: 
+    spec:
+        containers:
+           - name: reporting-tool
+             image: reporting-tool
+        restartPolicy: Never
+ so now 3 spec section one for cron job ,second for job and third for pod 
+
+kubectl create -f cron-job-defination.yaml 
+kubectl get cronjob
