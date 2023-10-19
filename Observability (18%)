@@ -1,0 +1,200 @@
+Resource Limits 
+We can set a limit, for the resource usage on these pods.
+For example :- If you set a limit of one vCPU to the containers,a container will be limited to consue only one vcpu from that node.so the same goes with memory.
+For example :-we can set a limit of 512 mebibyte on container 
+
+Pod-defination.yaml
+spec:
+  containers:
+   - name: xyz
+     image: xyz
+     ports:
+       - containerPort: 8080
+     resources:
+        requests:
+           memory:"1Gi"
+           cpu: 2
+        limits:
+           memory: "2Gi"
+           cpu: 2
+Now when the pod is created kubernetes sets new limits for the container and remember that the limits and requests are set for each container within a pod.so if there are multiple containers,then each container can have a request or limit set for its own.
+
+Exceed limits
+So what happens when a pod tries to exceed resources beyond its specified limt ?
+in case of the cpu the system throttles the cpu so that it does not go beyond the specified limt
+a container cannot use more cpu resources than its limit 
+However this is not case with memory a container can use more memory resources than its limit.
+so if a pod tries to consume more memory than its limit constantly the pod will be terminated with OOM(out of memory) log 
+   
+Default Behavior 
+so by default kubernetes does not have a cpu or memory request or limit set.
+so this means that any pod can consume as much resources as required on any node and suffocate other pods or processes that are running on the node of resources.
+
+Behavior-CPU
+So let just look at how cpu requests and limits work.
+ - lets say there are two pods competing for cpu resourcess on the cluster and when i say pod i mean a container within pod 
+without set limit , one pod can consume all the cpu resource on the node and prevent the second part of require resource so of cource this is not ideal 
+ - Now lets look at another case where we have no request specified but we do have limit specified in this case kubernetes automatically sets requests to the same as limits 
+
+For example :- request and limits are assumed to be three , in this case and each pod is guaranteed three vcpus and no more than that as limits are also set to the same 
+
+The next one the request and limits are set.in this case each pod gets a guaranteed of cpu requests which is one vcpu and can go up to the limits that are defined which is three vcpu,but not more 
+so this might look to be the most ideal scenario 
+however the issue is that if pod one needs more cpu cycles for some reason and pod two isn't realy consuming that many cpu cycles,then we dont want to limit pod one of cpu. so we would like to allow pod one to use the available cpu cycles as long as pod two doesnt really need it.
+
+last senario 
+setting request but no limits.
+in this case because request are set each pod is guaranteed one vcpu however because limits are not set when available , any pod can consume as many cpu cycles as available.
+but at any point in time if pod two is require additional cpu cycles or whatever it has requested then it will be guaranteed its requested cpu cycle.
+
+
+Limit Range
+limit range can help you define default values to be set for container in pods that are created without a request or limit specified in the the pod defination files.
+this is applicable at the name spave level.
+
+Limit-range-cpu.yaml 
+apiVersion: v1
+kind: LimitRange
+metadata: 
+     name: cpu-resources-constraint
+spec:
+  limits:
+    - default:
+        cpu: 500m                           limit
+      defaultRequest:
+        cpu: 500mm                           request
+      max: 
+        cpu: "1"                                   limit
+      min: 
+        cpu: 100m                                    request
+      type: Container
+
+Limit-range-memory.yaml 
+apiVersion: v1
+kind: LimitRange
+metadata: 
+     name: memory-resources-constraint
+spec:
+  limits:
+    - default:
+        memory: 1Gi                               limit
+      defaultRequest:
+        memory: 1Gi                               request
+      max: 
+        memory: 1Gi                                  limit
+      min: 
+        memory: 500Mi                                    request
+      type: Container
+ 
+Note that these limits are enforced when a pod is created.so if you create or change a limit range it does not affect existing pods.
+it only affect newer pods that are created after the limit range is created or updated 
+
+Resource quotas
+
+For example ,if we had to say that all the pods together should't consume more than this much of cpu or memory.
+what we could do is create quotas at a namespace level 
+
+so a resource quota is namespace level object that can be created to set hard limits for requests and limits.
+in this example this resource quota limits the total requested cpu in the current namespace to four and memory to four gibibyte and it define a maximum limit of cpu consumed by all the pods together to be 10 and memory to be 10 gibibyte as well 
+
+Resource-quota.yaml 
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+    name: my-resource-quota
+spec:
+  hard:
+    requests.cpu: 4
+    requests.memory: 4Gi
+    requests.cpu: 10
+    requests.memory: 10Gi
+
+Taints & Tolerations
+about the pod to node relationship and how we can restrict what pods are placed on what nodes. 
+The concept of taints and tolerations can be a bit confusing for beginners 
+taint and tolerations are used to set restrictions on what pods can be scheduled on a node.
+
+first we prevent all pods from being placed on the node by placing a taint on the node 
+by default pods have no tolerations which means unless specified otherwise none of the pods can tolerate any taint 
+
+this solve half of our requirements 
+no unwanted pods are going to be placed on this node.the other half is to enable certain pods to be placed on this node 
+for this we must specify which pods are tolerant to this particular taint 
+
+so we add a toleration to pod D. pod D is now tolerant to blue so when scheduler tries to place this pod on node one  it goes through node one can now only accept pods that can tolerate the taint blue 
+
+the scheduler tries to place pod A on node one but due to the taint it is thrown off and it goes to node two 
+
+Taints Node command 
+- use the kubectl taint nodes command to taint a node.
+- specify the name of the node to taint followed by the taint itself,which is a key value pair.
+ 
+kubectl taint nodes node-name key=value:taint-effect
+
+                                                                   ******  Security contexts  ******
+Container are encapsulated in pods.you may choose to configure the security settings. at a container level,or at a pod level.
+if you configure at pod level the settings will carry-over to all the containers within the pods
+
+spec:
+  containers:
+     - name: ubuntu
+       image: ubuntu
+       command: ["sleep","36000"]
+       securityContext:
+            runAsUser: 1000
+            capabilities:
+                 add: [mac_admin]
+Note: capability only support at container level not at pod level 
+
+                                                                   *******   Service Accounts   *******
+The concept of service accounts is linked to other security-releted concept in kubernates
+such as authentication , authorizations , role-based access controls
+
+There are two type of service accounts in kubernets 
+[1] user account
+[2] service account
+
+- user account use by humans 
+- service account are used by machines
+
+- user account could be for  an administrator accessing cluster to perform administrative task or a devloper accessing the cluster to deploy application.
+- a service account could be an account used by an application to interact with kubernates cluster.
+- for example :- monitoring application like prometheus uses a service account to pull the kube api for performance metrics and automated built tool like jenkins use a service account to deploye application on kube cluster
+
+kubectl create serviceaccount dash-sa
+kubectl get serviceaccount
+
+when service account created it also create a token automatically.
+kubectl describe serviceaccount dash-sa
+
+- the service account token is what must be used by the external application while authentication to the kubernetes api.
+- the token however stored as a secret object in this case named dash-sa-token-kbbdm
+- when service account created first it create serviceaccount object and then generate a token for the service account. it then create secret object and store that   token inside the secret object.
+- the secret object is then linked to service account
+
+To view token , view the secret object by running | you see this object using describe command
+kubectl describe secret dash-sa-token-kbbdm
+
+this token then used as authentication bearer token while making a rest call to the kube api 
+
+For example :-
+in this simple example using curl , you could provide the bearer token as an authorization header.while making a rest call to the kubectl api 
+
+curl https://192.168.56.70:6443/api -insecure --header "Authorization : Bearer eyjhbg........"
+
+- for every namespace in kubernates a service account named default is automatically created each namespace has its own default service account 
+- whenever a pod is created, the default service account and its token are automatically mounted to that pod as volume mount
+
+kubectl describe pod my-kube-dash
+in 
+mounts:
+  /var/run/secrets/kubernated.io/serviceaccount from default-token-J4hkvcor
+kubectl exec -it my-kube-dash --ls /var/run/secrets/kubernated.io/serviceaccount
+
+you get three file 
+ca.crt namespace token 
+
+
+
+
+
